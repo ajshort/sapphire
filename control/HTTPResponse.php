@@ -51,19 +51,7 @@ class SS_HTTPResponse extends SS_HttpMessage {
 		504 => 'Gateway Timeout',
 		505 => 'HTTP Version Not Supported',
 	);
-	
-	/**
-	 * @var array
-	 */
-	protected static $redirect_codes = array(
-		301,
-		302,
-		303,
-		304,
-		305,
-		307
-	);
-	
+
 	/**
 	 * @var Int
 	 */
@@ -137,6 +125,16 @@ class SS_HTTPResponse extends SS_HttpMessage {
 		return $this->statusCode && ($this->statusCode < 200 || $this->statusCode > 399);
 	}
 	
+	/**
+	 * Returns true if this request or a status code corresponds to a redirect.
+	 *
+	 * @param int $code
+	 * @return bool
+	 */
+	public function isRedirect($code = null) {
+		return substr($code ?: $this->getStatusCode(), 0, 1) == '3';
+	}
+
 	function setBody($body) {
 		parent::setBody($body);
 		
@@ -144,17 +142,20 @@ class SS_HTTPResponse extends SS_HttpMessage {
 		$this->setHeader('Content-Length', mb_strlen($body, '8bit'));
 	}
 
-	function redirect($dest, $code=302) {
-		if(!in_array($code, self::$redirect_codes)) $code = 302;
+	public function redirect($dest, $code = 302) {
+		if(!$this->isRedirect($code)) {
+			$code = 302;
+		}
+
 		$this->setStatusCode($code);
-		$this->headers['Location'] = $dest;
+		$this->setHeader('Location', $dest);
 	}
 
 	/**
 	 * Send this HTTPReponse to the browser
 	 */
 	function output() {
-		if(in_array($this->statusCode, self::$redirect_codes) && headers_sent($file, $line)) {
+		if($this->isRedirect() && headers_sent($file, $line)) {
 			$url = $this->headers['Location'];
 			echo
 			"<p>Redirecting to <a href=\"$url\" title=\"Please click this link if your browser does not redirect you\">$url... (output started on $file, line $line)</a></p>

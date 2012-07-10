@@ -29,5 +29,14 @@ class HTTPResponseTest extends SapphireTest {
 			'Header is updated when body is changed'
 		);
 	}
-	
+
+	public function testIsRedirect() {
+		$response = new SS_HTTPResponse();
+		$this->assertFalse($response->isRedirect());
+		$this->assertTrue($response->isRedirect(301));
+
+		$response->setStatusCode(307);
+		$this->assertTrue($response->isRedirect());
+	}
+
 }
