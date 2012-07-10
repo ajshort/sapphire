@@ -84,23 +84,23 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 		$this->body = $body;
 	}
 	
-	function isGET() {
+	function isGet() {
 		return $this->httpMethod == 'GET';
 	}
 	
-	function isPOST() {
+	function isPost() {
 		return $this->httpMethod == 'POST';
 	}
 	
-	function isPUT() {
+	function isPut() {
 		return $this->httpMethod == 'PUT';
 	}
 
-	function isDELETE() {
+	function isDelete() {
 		return $this->httpMethod == 'DELETE';
 	}	
 
-	function isHEAD() {
+	function isHead() {
 		return $this->httpMethod == 'HEAD';
 	}	
 
@@ -164,7 +164,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	 * 
 	 * @return string
 	 */
-	function getURL($includeGetVars = false) {
+	function getUrl($includeGetVars = false) {
 		$url = ($this->getExtension()) ? $this->url . '.' . $this->getExtension() : $this->url; 
 
 		 if ($includeGetVars) { 
@@ -457,7 +457,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	 *
 	 * @return string
 	 */
-	function getIP() {
+	function getIp() {
 		if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
 	  		//check ip from share internet
 			return $_SERVER['HTTP_CLIENT_IP'];
@@ -476,7 +476,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	 * @param boolean $includeQuality Don't strip away optional "quality indicators", e.g. "application/xml;q=0.9" (Default: false)
 	 * @return array
 	 */
-	function getAcceptMimetypes($includeQuality = false) {
+	function getAcceptMimeTypes($includeQuality = false) {
 	   $mimetypes = array();
 	   $mimetypesWithQuality = explode(',',$this->getHeader('Accept'));
 	   foreach($mimetypesWithQuality as $mimetypeWithQuality) {
@@ -488,7 +488,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	/**
 	 * @return string HTTP method (all uppercase)
 	 */
-	public function httpMethod() {
+	public function getMethod() {
 		return $this->httpMethod;
 	}
 	
@@ -518,4 +518,13 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 			return $origMethod;
 		}
 	}
+
+	/**
+	 * @deprecated 3.1 Use {@link getMethod()}.
+	 */
+	public function httpMethod() {
+		Deprecation::notice('3.1', 'Use getMethod().');
+		return $this->getMethod();
+	}
+
 }
