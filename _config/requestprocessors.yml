@@ -1,0 +1,15 @@
+---
+name: requirements
+---
+Injector:
+  RequestProcessor:
+    constructor:
+      - ['%$RequirementsRequestFilter']
+---
+name: debug
+except: { environment: live }
+---
+Injector:
+  RequestProcessor:
+    constructor:
+      - ['%$DebugRequestFilter']
