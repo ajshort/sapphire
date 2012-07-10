@@ -28,12 +28,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	 * Only use this structure for internal request handling purposes.
 	 */
 	protected $dirParts;
-	
-	/**
-	 * @var string $extension The URL extension (if present)
-	 */
-	protected $extension;
-	
+
 	/**
 	 * @var string $httpMethod The HTTP method in all uppercase: GET/PUT/POST/DELETE/HEAD
 	 */
@@ -80,10 +75,7 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 		if(Director::is_relative_url($url) || preg_match('/^\//', $url)) {
 			$this->url = preg_replace(array('/\/+/','/^\//', '/\/$/'),array('/','',''), $this->url);
 		}
-		if(preg_match('/^(.*)\.([A-Za-z][A-Za-z0-9]*)$/', $this->url, $matches)) {
-			$this->url = $matches[1];
-			$this->extension = $matches[2];
-		}
+
 		if($this->url) $this->dirParts = preg_split('|/+|', $this->url);
 		else $this->dirParts = array();
 		
@@ -142,19 +134,16 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 		if(isset($this->postVars[$name])) return $this->postVars[$name];
 		if(isset($this->getVars[$name])) return $this->getVars[$name];
 	}
-	
+
 	/**
-	 * Returns a possible file extension found in parsing the URL
-	 * as denoted by a "."-character near the end of the URL.
-	 * Doesn't necessarily have to belong to an existing file,
-	 * as extensions can be also used for content-type-switching.
-	 * 
+	 * Returns the extension included in the URL.
+	 *
 	 * @return string
 	 */
-	function getExtension() {
-		return $this->extension;
+	public function getExtension() {
+		return pathinfo($this->getURL(), PATHINFO_EXTENSION);
 	}
-	
+
 	/**
 	 * Checks if the {@link SS_HTTPRequest->getExtension()} on this request matches one of the more common media types
 	 * embedded into a webpage - e.g. css, png.
