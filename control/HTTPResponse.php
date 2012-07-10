@@ -5,7 +5,7 @@
  * @package framework
  * @subpackage control
  */
-class SS_HTTPResponse {
+class SS_HTTPResponse extends SS_HttpMessage {
 	
 	/**
 	 * @var array
@@ -73,22 +73,11 @@ class SS_HTTPResponse {
 	 * @var String
 	 */
 	protected $statusDescription = "OK";
-	
-	/**
-	 * HTTP Headers like "Content-Type: text/xml"
-	 *
-	 * @see http://en.wikipedia.org/wiki/List_of_HTTP_headers
-	 * @var array
-	 */
+
 	protected $headers = array(
 		"Content-Type" => "text/html; charset=utf-8",
 	);
-	
-	/**
-	 * @var string
-	 */
-	protected $body = null;
-	
+
 	/**
 	 * Create a new HTTP response
 	 * 
@@ -149,57 +138,12 @@ class SS_HTTPResponse {
 	}
 	
 	function setBody($body) {
-		$this->body = $body;
+		parent::setBody($body);
 		
 		// Set content-length in bytes. Use mbstring to avoid problems with mb_internal_encoding() and mbstring.func_overload
-		$this->headers['Content-Length'] = mb_strlen($this->body,'8bit');
+		$this->setHeader('Content-Length', mb_strlen($body, '8bit'));
 	}
-	
-	function getBody() {
-		return $this->body;
-	}
-	
-	/**
-	 * Add a HTTP header to the response, replacing any header of the same name.
-	 * 
-	 * @param string $header Example: "Content-Type"
-	 * @param string $value Example: "text/xml" 
-	 */
-	function addHeader($header, $value) {
-		$this->headers[$header] = $value;
-	}
-	
-	/**
-	 * Return the HTTP header of the given name.
-	 * 
-	 * @param string $header
-	 * @returns string
-	 */
-	function getHeader($header) {
-		if(isset($this->headers[$header])) {
-			return $this->headers[$header];			
-		} else {
-			return null;
-		}
-	}
-	
-	/**
-	 * @return array
-	 */
-	function getHeaders() {
-		return $this->headers;
-	}
-	
-	/**
-	 * Remove an existing HTTP header by its name,
-	 * e.g. "Content-Type".
-	 *
-	 * @param unknown_type $header
-	 */
-	function removeHeader($header) {
-		if(isset($this->headers[$header])) unset($this->headers[$header]);
-	}
-	
+
 	function redirect($dest, $code=302) {
 		if(!in_array($code, self::$redirect_codes)) $code = 302;
 		$this->setStatusCode($code);
