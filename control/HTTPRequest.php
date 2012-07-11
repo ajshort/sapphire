@@ -47,13 +47,18 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	/**
 	 * Construct a SS_HTTPRequest from a URL relative to the site root.
 	 */
-	function __construct($httpMethod, $url, $getVars = array(), $postVars = array(), $body = null) {
-		$this->httpMethod = strtoupper(self::detect_method($httpMethod, $postVars));
-		$this->url = $url;
+	function __construct($method = null, $url = null, $getVars = array(), $postVars = array(), $body = null) {
+		if($method) {
+			$this->httpMethod = strtoupper(self::detect_method($method, $postVars));
+		}
 
-		// Normalize URL if its relative (strictly speaking), or has leading slashes
-		if(Director::is_relative_url($url) || preg_match('/^\//', $url)) {
-			$this->url = preg_replace(array('/\/+/','/^\//', '/\/$/'),array('/','',''), $this->url);
+		if($url) {
+			// Normalise URL if its relative or has leading slashes
+			if(Director::is_relative_url($url) || preg_match('/^\//', $url)) {
+				$url = preg_replace(array('/\/+/','/^\//', '/\/$/'),array('/', '', ''), $url);
+			}
+
+			$this->url = $url;
 		}
 
 		if($this->url) $this->dirParts = preg_split('|/+|', $this->url);

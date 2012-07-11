@@ -88,9 +88,8 @@ class RequestHandler extends ViewableData {
 	public function __construct() {
 		$this->brokenOnConstruct = false;
 
-		// Check necessary to avoid class conflicts before manifest is rebuilt
-		if(class_exists('NullHTTPRequest')) $this->request = new NullHTTPRequest();
-		
+		$this->request = new RoutedRequest();
+
 		// This will prevent bugs if setDataModel() isn't called.
 		$this->model = DataModel::inst();
 		
@@ -356,12 +355,9 @@ class RequestHandler extends ViewableData {
 	}
 
 	/**
-	 * Returns the SS_HTTPRequest object that this controller is using.
-	 * Returns a placeholder {@link NullHTTPRequest} object unless 
-	 * {@link handleAction()} or {@link handleRequest()} have been called,
-	 * which adds a reference to an actual {@link SS_HTTPRequest} object.
+	 * Returns the request object that this controller is handling.
 	 *
-	 * @return SS_HTTPRequest|NullHTTPRequest
+	 * @return SS_HTTPRequest
 	 */
 	function getRequest() {
 		return $this->request;

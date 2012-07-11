@@ -30,7 +30,7 @@ class RoutedRequest extends SS_HTTPRequest {
 	 */
 	protected $unshiftedButParsed = 0;
 
-	public function __construct($method, $url, $get = array(), $post = array(), $body = null) {
+	public function __construct($method = null, $url = null, $get = array(), $post = array(), $body = null) {
 		parent::__construct($method, $url, $get, $post, $body);
 
 		if($url = $this->getUrl()) {
