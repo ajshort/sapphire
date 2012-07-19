@@ -229,7 +229,10 @@ class LeftAndMain extends Controller implements PermissionProvider {
 				if(!file_exists(BASE_PATH . '/' . $cssFile)) unset($cssFiles[$k]);
 			}
 
-			$htmlEditorConfig->setOption('content_css', implode(',', $cssFiles));
+			$htmlEditorConfig->setOptions(array(
+				'content_css', implode(',', $cssFiles),
+				'document_base_url' => Director::absoluteBaseURL()
+			));
 		}
 		
 		// Using uncompressed files as they'll be processed by JSMin in the Requirements class.

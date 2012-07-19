@@ -6,8 +6,6 @@ HtmlEditorConfig::get('cms')->setOptions(array(
 	'mode' => 'none', // initialized through LeftAndMain.EditFor.js logic
 
 	'body_class' => 'typography',
-	'document_base_url' => Director::absoluteBaseURL(),
-
 	'cleanup_callback' => "sapphiremce_cleanup",
 
 	'use_native_selects' => true, // fancy selects are bug as of SS 2.3.0
