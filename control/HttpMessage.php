@@ -39,6 +39,13 @@ abstract class SS_HttpMessage {
 	}
 
 	/**
+	 * @param array $headers
+	 */
+	public function setHeaders(array $headers) {
+		foreach($headers as $k => $v) $this->setHeader($k, $v);
+	}
+
+	/**
 	 * Gets a header by name.
 	 *
 	 * @param string $name
