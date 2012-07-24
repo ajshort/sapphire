@@ -381,6 +381,18 @@ class GridField extends FormField {
 	}
 
 	/**
+	 * @return GridField
+	 */
+	public function performReadonlyTransformation() {
+		$grid = clone $this;
+
+		$grid->setReadonly(true);
+		$grid->setConfig(GridFieldConfig_RecordViewer::create());
+
+		return $grid;
+	}
+
+	/**
 	 * Get the columns of this GridField, they are provided by attached GridField_ColumnProvider
 	 *
 	 * @return array
