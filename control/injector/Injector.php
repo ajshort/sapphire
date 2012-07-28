@@ -195,8 +195,6 @@ class Injector {
 		if ($config) {
 			$this->load($config);
 		}
-		
-		self::$instance = $this;
 	}
 
 	/**
@@ -211,7 +209,14 @@ class Injector {
 		}
 		return self::$instance;
 	}
-	
+
+	/**
+	 * @param Injector $inst
+	 */
+	public static function set_inst(Injector $inst) {
+		self::$instance = $inst;
+	}
+
 	/**
 	 * Indicate whether we auto scan injected objects for properties to set. 
 	 *
