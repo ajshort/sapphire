@@ -685,7 +685,17 @@ class Injector {
 		$this->serviceCache[$name] = $service;
 		$this->inject($service);
 	}
-	
+
+	/**
+	 * Removes a spec and service from the injector.
+	 *
+	 * @param string $name
+	 */
+	public function unregister($name) {
+		unset($this->specs[$name]);
+		unset($this->serviceCache[$name]);
+	}
+
 	/**
 	 * Removes a named object from the cached list of objects managed
 	 * by the inject
