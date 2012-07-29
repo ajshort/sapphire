@@ -99,9 +99,9 @@ class FunctionalTest extends SapphireTest {
 	 * Submit a post request
 	 * @uses Director::test()
 	 */
-	function post($url, $data, $headers = null, $session = null, $body = null, $cookies = null) {
+	function post($url, $data, $headers = null, $session = null, $body = null, $cookies = null, $files = null) {
 		$this->cssParser = null;
-		$response = $this->mainSession->post($url, $data, $headers, $session, $body, $cookies);
+		$response = $this->mainSession->post($url, $data, $headers, $session, $body, $cookies, $files);
 		if($this->autoFollowRedirection && is_object($response) && $response->getHeader('Location')) $response = $this->mainSession->followRedirection();
 		return $response;
 	}

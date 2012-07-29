@@ -66,7 +66,7 @@ class Director implements TemplateGlobalProvider {
 	 * @uses Controller::run() Controller::run() handles the page logic for a Director::direct() call.
 	 */
 	static function direct($url, DataModel $model) {
-		// Validate $_FILES array before merging it with $_POST
+		// Validate the $_FILES array
 		foreach($_FILES as $k => $v) {
 			if(is_array($v['tmp_name'])) {
 				$v = ArrayLib::array_values_recursive($v['tmp_name']);
@@ -86,7 +86,8 @@ class Director implements TemplateGlobalProvider {
 			(isset($_SERVER['X-HTTP-Method-Override'])) ? $_SERVER['X-HTTP-Method-Override'] : $_SERVER['REQUEST_METHOD'],
 			$url, 
 			$_GET, 
-			ArrayLib::array_merge_recursive((array)$_POST, (array)$_FILES),
+			$_POST,
+			$_FILES,
 			@file_get_contents('php://input')
 		);
 
@@ -131,7 +132,7 @@ class Director implements TemplateGlobalProvider {
 	 * This method is the counterpart of Director::direct() that is used in functional testing.  It will execute the URL given,
 	 * 
 	 * @param string $url The URL to visit
-	 * @param array $postVars The $_POST & $_FILES variables
+	 * @param array $postVars The $_POST variables
 	 * @param Session $session The {@link Session} object representing the current session.  By passing the same object to multiple
 	 * calls of Director::test(), you can simulate a persisted session.
 	 * @param string $httpMethod The HTTP method, such as GET or POST.  It will default to POST if postVars is set, GET otherwise.
@@ -139,19 +140,26 @@ class Director implements TemplateGlobalProvider {
 	 * @param string $body The HTTP body
 	 * @param array $headers HTTP headers with key-value pairs
 	 * @param array $cookies to populate $_COOKIE
+	 * @param array $files to populate $_FILES
 	 * @return SS_HTTPResponse
 	 * 
 	 * @uses getControllerForURL() The rule-lookup logic is handled by this.
 	 * @uses Controller::run() Controller::run() handles the page logic for a Director::direct() call.
 	 */
-	static function test($url, $postVars = null, $session = null, $httpMethod = null, $body = null, $headers = null, $cookies = null) {
+	static function test($url, $postVars = null, $session = null, $httpMethod = null, $body = null, $headers = null, $cookies = null, $files = array()) {
 		// These are needed so that calling Director::test() doesnt muck with whoever is calling it.
 		// Really, it's some inappropriate coupling and should be resolved by making less use of statics
 		$oldStage = Versioned::current_stage();
 		$getVars = array();
-		
-		if(!$httpMethod) $httpMethod = ($postVars || is_array($postVars)) ? "POST" : "GET";
-		
+
+		if(!$httpMethod) {
+			if($postVars || is_array($postVars) || $files) {
+				$httpMethod = 'POST';
+			} else {
+				$httpMethod = 'GET';
+			}
+		}
+
 		if(!$session) $session = new Session(null);
 
 		// Back up the current values of the superglobals
@@ -161,7 +169,8 @@ class Director implements TemplateGlobalProvider {
 		$existingSessionVars = isset($_SESSION) ? $_SESSION : array();
 		$existingCookies = isset($_COOKIE) ? $_COOKIE : array();
 		$existingServer	= isset($_SERVER) ? $_SERVER : array();
-		
+		$existingFiles = isset($_FILES) ? $_FILES : array();
+
 		$existingCookieReportErrors = Cookie::report_errors();
 		$existingRequirementsBackend = Requirements::backend();
 
@@ -187,9 +196,10 @@ class Director implements TemplateGlobalProvider {
 		$_POST = (array)$postVars; 
 		$_SESSION = $session ? $session->inst_getAll() : array();
 		$_COOKIE = (array) $cookies;
+		$_FILES = $files;
 		$_SERVER['REQUEST_URI'] = Director::baseURL() . $urlWithQuerystring;
 
-		$req = new RoutedRequest($httpMethod, $url, $getVars, $postVars, $body);
+		$req = new RoutedRequest($httpMethod, $url, $getVars, $postVars, $files, $body);
 		if($headers) foreach($headers as $k => $v) $req->addHeader($k, $v);
 		// TODO: Pass in the DataModel
 		$result = Director::handleRequest($req, $session, DataModel::inst());
@@ -201,6 +211,7 @@ class Director implements TemplateGlobalProvider {
 		$_SESSION = $existingSessionVars;   
 		$_COOKIE = $existingCookies;
 		$_SERVER = $existingServer;
+		$_FILES = $existingFiles;
 
 		Cookie::set_report_errors($existingCookieReportErrors); 
 		Requirements::set_backend($existingRequirementsBackend);

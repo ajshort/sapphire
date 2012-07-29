@@ -23,6 +23,7 @@
 		$_FILES = array('NoRelationField' => $this->getUploadFile($tmpFileName));
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/NoRelationField/upload',
+			null, null, null, null, null,
 			array('NoRelationField' => $this->getUploadFile($tmpFileName))
 		);
 		$this->assertFalse($response->isError());
@@ -43,6 +44,7 @@
 		$_FILES = array('HasOneFile' => $this->getUploadFile($tmpFileName));
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasOneFile/upload',
+			null, null, null, null, null,
 			array('HasOneFile' => $this->getUploadFile($tmpFileName))
 		);
 		$this->assertFalse($response->isError());
@@ -67,6 +69,7 @@
 		$_FILES = array('HasOneExtendedFile' => $this->getUploadFile($tmpFileName));
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasOneExtendedFile/upload',
+			null, null, null, null, null,
 			array('HasOneExtendedFile' => $this->getUploadFile($tmpFileName))
 		);
 		$this->assertFalse($response->isError());
@@ -89,6 +92,7 @@
 		$_FILES = array('HasManyFiles' => $this->getUploadFile($tmpFileName));
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasManyFiles/upload',
+			null, null, null, null, null,
 			array('HasManyFiles' => $this->getUploadFile($tmpFileName))
 		);
 		$this->assertFalse($response->isError());
@@ -111,6 +115,7 @@
 		$_FILES = array('ManyManyFiles' => $this->getUploadFile($tmpFileName));
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/ManyManyFiles/upload',
+			null, null, null, null, null,
 			array('ManyManyFiles' => $this->getUploadFile($tmpFileName))
 		);
 		$this->assertFalse($response->isError());
@@ -140,6 +145,7 @@
 			$_FILES = array($recordName => $this->getUploadFile($tmpFileName));
 			$response = $this->post(
 				"UploadFieldTest_Controller/Form/field/$recordName/upload",
+				null, null, null, null, null,
 				array($recordName => $this->getUploadFile($tmpFileName))
 			);
 			$body = json_decode($response->getBody());
@@ -148,6 +154,7 @@
 			// Write to it again, should result in an error.
 			$response = $this->post(
 				"UploadFieldTest_Controller/Form/field/$recordName/upload",
+				null, null, null, null, null,
 				array($recordName => $this->getUploadFile($tmpFileName))
 			);
 			$body = json_decode($response->getBody());
@@ -170,6 +177,7 @@
 		// Write the first element, should be okay.
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasManyFilesMaxTwo/upload',
+			null, null, null, null, null,
 			array('HasManyFilesMaxTwo' => $this->getUploadFile($tmpFileName))
 		);
 		$body = json_decode($response->getBody());
@@ -178,6 +186,7 @@
 		// Write the second element, should be okay.
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasManyFilesMaxTwo/upload',
+			null, null, null, null, null,
 			array('HasManyFilesMaxTwo' => $this->getUploadFile($tmpFileName))
 		);
 		$body = json_decode($response->getBody());
@@ -186,6 +195,7 @@
 		// Write the third element, should result in error.
 		$response = $this->post(
 			'UploadFieldTest_Controller/Form/field/HasManyFilesMaxTwo/upload',
+			null, null, null, null, null,
 			array('HasManyFilesMaxTwo' => $this->getUploadFile($tmpFileName))
 		);
 		$body = json_decode($response->getBody());

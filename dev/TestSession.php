@@ -54,10 +54,10 @@ class TestSession {
 	 * Submit a post request
 	 * @uses Director::test()
 	 */
-	function post($url, $data, $headers = null, $session = null, $body = null, $cookies = null) {
+	function post($url, $data, $headers = null, $session = null, $body = null, $cookies = null, $files = null) {
 		$headers = (array) $headers;
 		if($this->lastUrl && !isset($headers['Referer'])) $headers['Referer'] = $this->lastUrl;
-		$this->lastResponse = Director::test($url, $data, $session ? $session : $this->session, null, $body, $headers, $cookies);
+		$this->lastResponse = Director::test($url, $data, $session ? $session : $this->session, null, $body, $headers, $cookies, $files);
 		$this->lastUrl = $url;
 		if(!$this->lastResponse) user_error("Director::test($url) returned null", E_USER_WARNING);
 		return $this->lastResponse;

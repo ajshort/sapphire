@@ -45,9 +45,14 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	protected $postVars = array();
 
 	/**
+	 * @var array
+	 */
+	protected $files = array();
+
+	/**
 	 * Construct a SS_HTTPRequest from a URL relative to the site root.
 	 */
-	function __construct($method = null, $url = null, $getVars = array(), $postVars = array(), $body = null) {
+	function __construct($method = null, $url = null, $getVars = array(), $postVars = array(), $filesVars = array(), $body = null) {
 		if($method) {
 			$this->httpMethod = strtoupper(self::detect_method($method, $postVars));
 		}
@@ -61,11 +66,9 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 			$this->url = $url;
 		}
 
-		if($this->url) $this->dirParts = preg_split('|/+|', $this->url);
-		else $this->dirParts = array();
-		
 		$this->getVars = (array)$getVars;
 		$this->postVars = (array)$postVars;
+		$this->files = (array) $filesVars;
 		$this->body = $body;
 	}
 	
@@ -118,6 +121,20 @@ class SS_HTTPRequest extends SS_HttpMessage implements ArrayAccess {
 	function requestVar($name) {
 		if(isset($this->postVars[$name])) return $this->postVars[$name];
 		if(isset($this->getVars[$name])) return $this->getVars[$name];
+	}
+
+	/**
+	 * @return array
+	 */
+	public function filesVars() {
+		return $this->files;
+	}
+
+	/**
+	 * @param string $name
+	 */
+	public function filesVar($name) {
+		if(isset($this->files[$name])) return $this->files[$name];
 	}
 
 	/**
