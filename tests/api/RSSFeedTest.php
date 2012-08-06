@@ -5,8 +5,6 @@
  */
 class RSSFeedTest extends SapphireTest {
 
-	protected static $original_host;
-
 	function testRSSFeed() {
 		$list = new ArrayList();
 		$list->push(new RSSFeedTest_ItemA());
@@ -15,9 +13,10 @@ class RSSFeedTest extends SapphireTest {
 
 		$rssFeed = new RSSFeed($list, "http://www.example.com", "Test RSS Feed", "Test RSS Feed Description");
 		$content = $rssFeed->feedContent();
+		$host = Injector::inst()->get('Request')->getSchemeAndHost();
 
 		//Debug::message($content);
-		$this->assertContains('<link>http://www.example.org/item-a/</link>', $content);
+		$this->assertContains('<link>' . $host . '/item-a/</link>', $content);
 		$this->assertContains('<link>http://www.example.com/item-b.html</link>', $content);
 		$this->assertContains('<link>http://www.example.com/item-c.html</link>', $content);
 
@@ -60,14 +59,11 @@ class RSSFeedTest extends SapphireTest {
 	public function setUp() {
 		parent::setUp();
 		Director::setBaseURL('/');
-		if(!self::$original_host) self::$original_host = $_SERVER['HTTP_HOST'];
-		$_SERVER['HTTP_HOST'] = 'www.example.org';
 	}
 
 	public function tearDown() {
 		parent::tearDown();
 		Director::setBaseURL(null);
-		$_SERVER['HTTP_HOST'] = self::$original_host;
 	}
 
 }

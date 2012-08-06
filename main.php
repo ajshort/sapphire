@@ -58,34 +58,6 @@ if (version_compare(phpversion(), '5.3.2', '<')) {
  */
 require_once('core/Core.php');
 
-// IIS will sometimes generate this.
-if(!empty($_SERVER['HTTP_X_ORIGINAL_URL'])) {
-	$_SERVER['REQUEST_URI'] = $_SERVER['HTTP_X_ORIGINAL_URL'];
-}
-
-// Apache rewrite rules use this
-if (isset($_GET['url'])) {
-	$url = $_GET['url'];
-	// IIS includes get variables in url
-	$i = strpos($url, '?');
-	if($i !== false) {
-		$url = substr($url, 0, $i);
-	}
-	
-// Lighttpd uses this
-} else {
-	if(strpos($_SERVER['REQUEST_URI'],'?') !== false) {
-		list($url, $query) = explode('?', $_SERVER['REQUEST_URI'], 2);
-		parse_str($query, $_GET);
-		if ($_GET) $_REQUEST = array_merge((array)$_REQUEST, (array)$_GET);
-	} else {
-		$url = $_SERVER["REQUEST_URI"];
-	}
-}
-
-// Remove base folders from the URL if webroot is hosted in a subfolder
-if (substr(strtolower($url), 0, strlen(BASE_URL)) == strtolower(BASE_URL)) $url = substr($url, strlen(BASE_URL));
-
 // Connect to database
 require_once('model/DB.php');
 
@@ -109,4 +81,4 @@ DB::connect($databaseConfig);
 
 // Direct away - this is the "main" function, that hands control to the appropriate controller
 DataModel::set_inst(new DataModel());
-Director::direct($url, DataModel::inst());
+Director::direct();

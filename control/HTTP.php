@@ -14,6 +14,30 @@ class HTTP {
 
 	protected static $etag = null;
 
+
+	/**
+	 * Construct an SS_HTTPResponse that will deliver a file to the client
+	 *
+	 * @return SS_HTTPResponse
+	 */
+	public static function send_file($fileData, $fileName, $mimeType = null) {
+		if(!$mimeType) {
+			$mimeType = self::get_mime_type($fileName);
+		}
+
+		$response = new SS_HTTPResponse($fileData);
+		$response->addHeader("Content-Type", "$mimeType; name=\"" . addslashes($fileName) . "\"");
+		$response->addHeader("Content-disposition", "attachment; filename=" . addslashes($fileName));
+		$response->addHeader("Content-Length", strlen($fileData));
+		$response->addHeader("Pragma", ""); // Necessary because IE has issues sending files over SSL
+
+		if(strstr($_SERVER["HTTP_USER_AGENT"],"MSIE") == true) {
+			$response->addHeader('Cache-Control', 'max-age=3, must-revalidate'); // Workaround for IE6 and 7
+		}
+
+		return $response;
+	}
+
 	/**
 	 * Turns a local system filename into a URL by comparing it to the script filename
 	 */

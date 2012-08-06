@@ -57,52 +57,7 @@ foreach($envFiles as $envFile) {
 ///////////////////////////////////////////////////////////////////////////////
 // GLOBALS AND DEFINE SETTING
 
-/**
- * A blank HTTP_HOST value is used to detect command-line execution.
- * We update the $_SERVER variable to contain data consistent with the rest of the application.
- */
-if(!isset($_SERVER['HTTP_HOST'])) {
-	// HTTP_HOST, REQUEST_PORT, SCRIPT_NAME, and PHP_SELF
-	if(isset($_FILE_TO_URL_MAPPING)) {
-		$fullPath = $testPath = realpath($_SERVER['SCRIPT_FILENAME']);
-		while($testPath && $testPath != '/' && !preg_match('/^[A-Z]:\\\\$/', $testPath)) {
-			if(isset($_FILE_TO_URL_MAPPING[$testPath])) {
-				$url = $_FILE_TO_URL_MAPPING[$testPath] 
-					. str_replace(DIRECTORY_SEPARATOR, '/', substr($fullPath,strlen($testPath)));
-				
-				$components = parse_url($url);
-				$_SERVER['HTTP_HOST'] = $components['host'];
-				if(!empty($components['port'])) $_SERVER['HTTP_HOST'] .= ':' . $components['port'];
-				$_SERVER['SCRIPT_NAME'] = $_SERVER['PHP_SELF'] = $components['path'];
-				if(!empty($components['port'])) $_SERVER['REQUEST_PORT'] = $components['port'];
-				break;
-			}
-			$testPath = dirname($testPath);
-		}
-	}
-
-	// Everything else
-	$serverDefaults = array(
-		'SERVER_PROTOCOL' => 'HTTP/1.1',
-		'HTTP_ACCEPT' => 'text/plain;q=0.5',
-		'HTTP_ACCEPT_LANGUAGE' => '*;q=0.5',
-		'HTTP_ACCEPT_ENCODING' => '',
-		'HTTP_ACCEPT_CHARSET' => 'ISO-8859-1;q=0.5',
-		'SERVER_SIGNATURE' => 'Command-line PHP/' . phpversion(),
-		'SERVER_SOFTWARE' => 'PHP/' . phpversion(),
-		'SERVER_ADDR' => '127.0.0.1',
-		'REMOTE_ADDR' => '127.0.0.1',
-		'REQUEST_METHOD' => 'GET',
-		'HTTP_USER_AGENT' => 'CLI',
-	);
-	
-	$_SERVER = array_merge($serverDefaults, $_SERVER);
-	
-/**
- * If we have an HTTP_HOST value, then we're being called from the webserver and there are some things that
- * need checking
- */
-} else {
+if(isset($_SERVER['HTTP_HOST'])) {
 	/**
 	 * Fix magic quotes setting
 	 */
@@ -110,14 +65,6 @@ if(!isset($_SERVER['HTTP_HOST'])) {
 		if($_REQUEST) stripslashes_recursively($_REQUEST);
 		if($_GET) stripslashes_recursively($_GET);
 		if($_POST) stripslashes_recursively($_POST);
-	}
-	
-	/**
-	 * Fix HTTP_HOST from reverse proxies
-	 */
-	if (isset($_SERVER['HTTP_X_FORWARDED_HOST'])) {
-		// Get the first host, in case there's multiple separated through commas
-		$_SERVER['HTTP_HOST'] = strtok($_SERVER['HTTP_X_FORWARDED_HOST'], ',');
 	}
 }
 
@@ -132,26 +79,7 @@ if(!defined('BASE_PATH')) {
 	if($candidateBasePath == '') $candidateBasePath = DIRECTORY_SEPARATOR;
 	define('BASE_PATH', $candidateBasePath);
 }
-if(!defined('BASE_URL')) {
-	// Determine the base URL by comparing SCRIPT_NAME to SCRIPT_FILENAME and getting common elements
-	$path = realpath($_SERVER['SCRIPT_FILENAME']);
-	if(substr($path, 0, strlen(BASE_PATH)) == BASE_PATH) {
-		$urlSegmentToRemove = substr($path, strlen(BASE_PATH));
-		if(substr($_SERVER['SCRIPT_NAME'], -strlen($urlSegmentToRemove)) == $urlSegmentToRemove) {
-			$baseURL = substr($_SERVER['SCRIPT_NAME'], 0, -strlen($urlSegmentToRemove));
-			define('BASE_URL', rtrim($baseURL, DIRECTORY_SEPARATOR));
-		}
-	}
-	
-	// If that didn't work, failover to the old syntax.  Hopefully this isn't necessary, and maybe
-	// if can be phased out?
-	if(!defined('BASE_URL')) {
-		$dir = (strpos($_SERVER['SCRIPT_NAME'], 'index.php') !== false)
-			? dirname($_SERVER['SCRIPT_NAME'])
-			: dirname(dirname($_SERVER['SCRIPT_NAME']));
-		define('BASE_URL', rtrim($dir, DIRECTORY_SEPARATOR));
-	}
-}
+
 define('MODULES_DIR', 'modules');
 define('MODULES_PATH', BASE_PATH . '/' . MODULES_DIR);
 define('THEMES_DIR', 'themes');
@@ -262,9 +190,7 @@ Injector::inst($default_options);
 // Regenerate the manifest if ?flush is set, or if the database is being built.
 // The coupling is a hack, but it removes an annoying bug where new classes
 // referenced in _config.php files can be referenced during the build process.
-$flush = (isset($_GET['flush']) || isset($_REQUEST['url']) && (
-	$_REQUEST['url'] == 'dev/build' || $_REQUEST['url'] == BASE_URL . '/dev/build'
-));
+$flush = isset($_GET['flush']);
 $manifest = new SS_ClassManifest(BASE_PATH, false, $flush);
 
 $loader = SS_ClassLoader::instance();

@@ -61,47 +61,48 @@ class Director implements TemplateGlobalProvider {
 	 * In addition to request processing, Director will manage the session, and perform the output of the actual response
 	 * to the browser.
 	 * 
-	 * @param $url String, the URL the user is visiting, without the querystring.
 	 * @uses handleRequest() rule-lookup logic is handled by this.
 	 * @uses Controller::run() Controller::run() handles the page logic for a Director::direct() call.
 	 */
-	static function direct($url, DataModel $model) {
-		// Validate the $_FILES array
+	public static function direct() {
 		foreach($_FILES as $k => $v) {
 			if(is_array($v['tmp_name'])) {
 				$v = ArrayLib::array_values_recursive($v['tmp_name']);
 				foreach($v as $tmpFile) {
 					if($tmpFile && !is_uploaded_file($tmpFile)) {
-						user_error("File upload '$k' doesn't appear to be a valid upload", E_USER_ERROR);
+						throw new \Exception("File upload '$k' doesn't appear to be a valid upload");
 					}
 				}
 			} else {
 				if($v['tmp_name'] && !is_uploaded_file($v['tmp_name'])) {
-					user_error("File upload '$k' doesn't appear to be a valid upload", E_USER_ERROR);
+					throw new \Exception("File upload '$k' doesn't appear to be a valid upload");
 				}
 			}
 		}
-		
-		$req = new RoutedRequest(
-			(isset($_SERVER['X-HTTP-Method-Override'])) ? $_SERVER['X-HTTP-Method-Override'] : $_SERVER['REQUEST_METHOD'],
-			$url, 
-			$_GET, 
-			$_POST,
-			$_FILES,
-			@file_get_contents('php://input')
-		);
 
-		$headers = self::extract_request_headers($_SERVER);
-		foreach ($headers as $header => $value) {
-			$req->addHeader($header, $value);
+		$injector = Injector::inst();
+		$model = $injector->get('DataModel');
+
+		if(self::is_cli()) {
+			$req = RoutedRequest::create_from_cli();
+			$req->setGlobals();
+		} else {
+			$req = new RoutedRequest();
 		}
+
+		$injector->registerNamedService('Request', $req);
+
+		/**
+		 * @deprecated 3.1 Use {@link SS_HTTPRequest::getBaseUrl()}.
+		 */
+		define('BASE_URL', trim($req->getBaseUrl(), '/'));
 
 		// Only resume a session if its not started already, and a session identifier exists
 		if(!isset($_SESSION) && (isset($_COOKIE[session_name()]) || isset($_REQUEST[session_name()]))) Session::start();
 		// Initiate an empty session - doesn't initialize an actual PHP session until saved (see belwo)
 		$session = new Session(isset($_SESSION) ? $_SESSION : null);
 
-		$output = Injector::inst()->get('RequestProcessor')->preRequest($req, $session, $model);
+		$output = $injector->get('RequestProcessor')->preRequest($req, $session, $model);
 		
 		if ($output === false) {
 			// @TODO Need to NOT proceed with the request in an elegant manner
@@ -117,7 +118,7 @@ class Director implements TemplateGlobalProvider {
 			$result = new SS_HTTPResponse($result);
 		}
 
-		$post = Injector::inst()->get('RequestProcessor')->postRequest($req, $result, $model);
+		$post = $injector->get('RequestProcessor')->postRequest($req, $result, $model);
 
 		if($post === false) {
 			throw new \Exception('Invalid response');
@@ -189,19 +190,18 @@ class Director implements TemplateGlobalProvider {
 			list($url, $getVarsEncoded) = explode('?', $url, 2);
 			parse_str($getVarsEncoded, $getVars);
 		}
-		
+
+		$req = RoutedRequest::create(
+			$httpMethod, $url, $getVars, $postVars, $files, $_SERVER, $headers, $body
+		);
+		$req->setGlobals();
+
+		Injector::inst()->registerNamedService('Request', $req);
+
 		// Replace the superglobals with appropriate test values
-		$_REQUEST = ArrayLib::array_merge_recursive((array)$getVars, (array)$postVars); 
-		$_GET = (array)$getVars; 
-		$_POST = (array)$postVars; 
 		$_SESSION = $session ? $session->inst_getAll() : array();
 		$_COOKIE = (array) $cookies;
-		$_FILES = $files;
-		$_SERVER['REQUEST_URI'] = Director::baseURL() . $urlWithQuerystring;
 
-		$req = new RoutedRequest($httpMethod, $url, $getVars, $postVars, $files, $body);
-		if($headers) foreach($headers as $k => $v) $req->addHeader($k, $v);
-		// TODO: Pass in the DataModel
 		$result = Director::handleRequest($req, $session, DataModel::inst());
 		
 		// Restore the superglobals
@@ -299,7 +299,7 @@ class Director implements TemplateGlobalProvider {
 	 */
 	static function absoluteURL($url, $relativeToSiteBase = false) {
 		if(!isset($_SERVER['REQUEST_URI'])) return false;
-		
+
 		if(strpos($url,'/') === false && !$relativeToSiteBase) $url = dirname($_SERVER['REQUEST_URI'] . 'x') . '/' . $url;
 
 	 	if(substr($url,0,4) != "http") {
@@ -312,41 +312,17 @@ class Director implements TemplateGlobalProvider {
 	}
 
 	/**
-	 * Returns the part of the URL, 'http://www.mysite.com'.
-	 * 
-	 * @return boolean|string The domain from the PHP environment. Returns FALSE is this environment variable isn't set.
+	 * @see SS_HTTPRequest::getSchemeAndHost()
 	 */
-	static function protocolAndHost() {
-		if(self::$alternateBaseURL) {
-			if(preg_match('/^(http[^:]*:\/\/[^\/]+)(\/|$)/', self::$alternateBaseURL, $matches)) {
-				return $matches[1];
-			}
-		}
-
-		if(isset($_SERVER['HTTP_HOST'])) {
-			return Director::protocol() . $_SERVER['HTTP_HOST'];
-		} else {
-			global $_FILE_TO_URL_MAPPING;
-			if(Director::is_cli() && isset($_FILE_TO_URL_MAPPING)) $errorSuggestion = '  You probably want to define '.
-				'an entry in $_FILE_TO_URL_MAPPING that covers "' . Director::baseFolder() . '"';
-			else if(Director::is_cli()) $errorSuggestion = '  You probably want to define $_FILE_TO_URL_MAPPING in '.
-				'your _ss_environment.php as instructed on the "sake" page of the doc.silverstripe.com wiki';
-			else $errorSuggestion = "";
-			
-			user_error("Director::protocolAndHost() lacks sufficient information - HTTP_HOST not set.$errorSuggestion", E_USER_WARNING);
-			return false;
-			
-		}
+	public static function protocolAndHost() {
+		return Injector::inst()->get('Request')->getSchemeAndHost();
 	}
 
 	/**
-	 * Return the current protocol that the site is running under 
-	 *
-	 * @return String
+	 * @see SS_HTTPRequest::getScheme()
 	 */
-	static function protocol() {
-		if(isset($_SERVER['HTTP_X_FORWARDED_PROTOCOL']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTOCOL']) == 'https') return "https://";
-		return (isset($_SERVER['SSL']) || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off')) ? 'https://' : 'http://';
+	public static function protocol() {
+		return Injector::inst()->get('Request')->getScheme() . '://';
 	}
 
 	/**
@@ -398,19 +374,10 @@ class Director implements TemplateGlobalProvider {
 	}
 
 	/**
-	 * Returns the root URL for the site.
-	 * It will be automatically calculated unless it is overridden with {@link setBaseURL()}.
+	 * @see SS_HTTPRequest::getBaseUrl()
 	 */
-	static function baseURL() {
-		if(self::$alternateBaseURL) return self::$alternateBaseURL;
-		else {
-			$base = BASE_URL;
-			if($base == '/' || $base == '/.' || $base == '\\') $baseURL = '/';
-			else $baseURL = $base . '/';
-			
-			if(defined('BASE_SCRIPT_URL')) return $baseURL . BASE_SCRIPT_URL;
-			else return $baseURL;
-		}
+	public static function baseURL() {
+		return self::$alternateBaseURL ?: Injector::inst()->get('Request')->getBaseUrl();
 	}
 	
 	/**
@@ -576,30 +543,6 @@ class Director implements TemplateGlobalProvider {
 	}
 
 	/**
-	 * Takes a $_SERVER data array and extracts HTTP request headers.
-	 *
-	 * @param  array $data
-	 * @return array
-	 */
-	static function extract_request_headers(array $server) {
-		$headers = array();
-	
-		foreach($server as $key => $value) {
-			if(substr($key, 0, 5) == 'HTTP_') {
-				$key = substr($key, 5);
-				$key = strtolower(str_replace('_', ' ', $key));
-				$key = str_replace(' ', '-', ucwords($key));
-				$headers[$key] = $value;
-			}
-		}
-	
-		if(isset($server['CONTENT_TYPE'])) $headers['Content-Type'] = $server['CONTENT_TYPE'];
-		if(isset($server['CONTENT_LENGTH'])) $headers['Content-Length'] = $server['CONTENT_LENGTH'];
-	
-		return $headers;
-	}
-
-	/**
 	 * Given a filesystem reference relative to the site root, return the full file-system path.
 	 * 
 	 * @param string $file
@@ -620,11 +563,11 @@ class Director implements TemplateGlobalProvider {
 	}
 
 	/**
-	 * Returns the Absolute URL of the site root.
+	 * @see SS_HTTPRequest::getAbsoluteBaseUrl()
 	 */
-	 static function absoluteBaseURL() {
-	 	return Director::absoluteURL(Director::baseURL());
-	 }
+	public static function absoluteBaseURL() {
+		return self::absoluteURL(self::baseURL());
+	}
 	 
 	/**
 	 * Returns the Absolute URL of the site root, embedding the current basic-auth credentials into the URL.
@@ -707,23 +650,12 @@ class Director implements TemplateGlobalProvider {
 	}
 
 	/**
-	 * Checks if the current HTTP-Request is an "Ajax-Request"
-	 * by checking for a custom header set by prototype.js or
-	 * wether a manually set request-parameter 'ajax' is present.
-	 *
-	 * @return boolean
+	 * @see SS_HTTPRequest::isAjax()
 	 */
-	static function is_ajax() {
-		if(Controller::has_curr()) {
-			return Controller::curr()->getRequest()->isAjax();
-		} else {
-			return (
-				isset($_REQUEST['ajax']) ||
-				(isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == "XMLHttpRequest")
-			);
-		}
+	public static function is_ajax() {
+		return Injector::inst()->get('Request')->isAjax();
 	}
-	
+
 	/**
 	 * Returns true if this script is being run from the command line rather than the webserver.
 	 * 
