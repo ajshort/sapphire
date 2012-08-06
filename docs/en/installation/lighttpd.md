@@ -3,7 +3,6 @@
 1. Lighttpd works fine so long as you provide a custom config. Add the following to lighttpd.conf **BEFORE** installing
 Silverstripe. Replace "yoursite.com" and "/home/yoursite/public_html/" below.
 
-	
 	$HTTP["host"] == "yoursite.com" {
 	    server.document-root = "/home/yoursite/public_html/"
 	
@@ -27,7 +26,7 @@ Silverstripe. Replace "yoursite.com" and "/home/yoursite/public_html/" below.
 	    # Rewrite URLs so they are nicer
 	    url.rewrite-once = (
 	       "^/.*\.[A-Za-z0-9]+.*?$" => "$0",
-	       "^/(.*?)(\?|$)(.*)" => "/framework/main.php?url=$1&$3"
+	       "^/.*$" => "/framework/main.php"
 	    )
 	
 	    # Show SilverStripe error page
@@ -53,8 +52,8 @@ of Silverstripe on the same host, you can use something like this (be warned, it
 	   url.rewrite-once = (
 	      "(?i)(/copy1/.*\.([A-Za-z0-9]+))(.*?)$" => "$0",
 	      "(?i)(/copy2/.*\.([A-Za-z0-9]+))(.*?)$" => "$0",
-	      "^/copy1/(.*?)(\?|$)(.*)" => "/copy1/framework/main.php?url=$1&$3",
-	      "^/copy2/(.*?)(\?|$)(.*)" => "/copy2/framework/main.php?url=$1&$3"
+	      "^/copy1/.*" => "/copy1/framework/main.php",
+	      "^/copy2/.*" => "/copy2/framework/main.php"
 	   )
 	   $HTTP["url"] =~ "^/copy1/" {
 	      server.error-handler-404 = "/copy1/framework/main.php"

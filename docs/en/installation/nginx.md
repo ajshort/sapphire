@@ -15,7 +15,7 @@ Now you need to setup a virtual host in Nginx with the following configuration s
 	        index  index.html index.php;
 	
 	        if (!-f $request_filename) {
-	                rewrite ^/(.*?)(\?|$)(.*)$ /framework/main.php?url=$1&$3 last;
+	                rewrite ^.*$ /framework/main.php last;
 	        }
 	
 	        error_page  404  /framework/main.php;

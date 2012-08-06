@@ -1280,7 +1280,7 @@ ErrorDocument 500 /assets/error-500.html
 	$baseClause
 	RewriteCond %{REQUEST_URI} ^(.*)$
 	RewriteCond %{REQUEST_FILENAME} !-f
-	RewriteRule .* $modulePath/main.php?url=%1&%{QUERY_STRING} [L]
+	RewriteRule .* $modulePath/main.php [QSA,L]
 </IfModule>
 TEXT;
 
@@ -1320,11 +1320,11 @@ TEXT;
 		<rewrite>
 			<rules>
 				<rule name="SilverStripe Clean URLs" stopProcessing="true">
-					<match url="^(.*)$" />
+					<match url=".*" />
 					<conditions>
 						<add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
 					</conditions>
-					<action type="Rewrite" url="$modulePath/main.php?url={R:1}" appendQueryString="true" />
+					<action type="Rewrite" url="$modulePath/main.php" appendQueryString="true" />
 				</rule>
 			</rules>
 		</rewrite>
