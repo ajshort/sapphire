@@ -62,7 +62,7 @@ When you create a function, you can access the ID like this:
 
 	:::php
 	 public function addToCart ($request) {
-	  $param = $r->allParams();
+	  $param = $r->getParams();
 	  echo "my ID = ".$param["ID"];
 	  $obj = MyProduct::get()->byID($param["ID"]);
 	  $obj->addNow();

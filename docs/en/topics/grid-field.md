@@ -307,7 +307,7 @@ Here is an example in full.  The actual implementation of the view and edit form
 		}
 
 		public function handleItem($gridField, $request) {
-			$record = $gridField->getList()->byId($request->param("ID"));
+			$record = $gridField->getList()->byId($request->getParam("ID"));
 			return new GridFieldDetailForm_ItemRequest($gridField, $this, $record);
 		}
 	}
