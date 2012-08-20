@@ -191,8 +191,6 @@ abstract class Application implements ApplicationInterface {
 		return $this->classLoader;
 	}
 
-	abstract public function getBasePath();
-
 	public function getPublicPath() {
 		return $this->getBasePath() . '/public';
 	}
