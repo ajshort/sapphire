@@ -1,40 +1,35 @@
 <?php
 /**
- * File similar to main.php designed for command-line scripts
- * 
- * This file lets you execute SilverStripe requests from the command-line.  The URL is passed as the first argument to the scripts.
- * 
+ * An entry point for cli requests.
+ *
  * @package framework
- * @subpackage core
  */
 
-/**
- * Ensure that people can't access this from a web-server
- */
-if(isset($_SERVER['HTTP_HOST'])) {
-	echo "cli-script.php can't be run from a web request, you have to run it on the command-line.";
-	die();
+// Ensure that this can only be run from the CLI.
+if(php_sapi_name() != 'cli') {
+	die(
+		'The CLI script cannot be run from a web reqest, you have to run it ' .
+		'on the command line.'
+	);
 }
 
-/**
- * Execute the script from inside its directory.
- */
-chdir(__DIR__);
+$loader = null;
+$bases = array(dirname(dirname(__DIR__)), dirname(__DIR__) . '/vendor');
 
-/**
- * Include SilverStripe's core code
- */
-require_once("core/Core.php");
+foreach($bases as $base) {
+	if(file_exists("$base/autoload.php")) {
+		$loader = "$base/autoload.php";
+		break;
+	}
+}
 
-global $databaseConfig;
+if(!$loader) {
+	echo "The Composer autoloader could not be found. Please ensure that " .
+	     "Composer is set up correctly, and the autoloader has been " .
+	     "built.\n";
+	exit(1);
+}
 
-// We don't have a session in cli-script, but this prevents errors
-$_SESSION = null;
+require_once $loader;
 
-// Connect to database
-require_once("model/DB.php");
-DB::connect($databaseConfig);
-
-// Direct away - this is the "main" function, that hands control to the apporopriate controller
-DataModel::set_inst(new DataModel());
-Director::direct();
+Application::respond();

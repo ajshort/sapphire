@@ -125,10 +125,10 @@ class Request extends Message implements \ArrayAccess {
 
 			while($path && $path != '/' && !preg_match('/^[A-Z]:\\\\$/', $path)) {
 				if(isset($_FILE_TO_URL_MAPPING[$path])) {
-					$url = $_FILE_TO_URL_MAPPING[$path];
-					$url .= str_replace('\\', '/', substr(getcwd(), strlen($path)));
+					$mapped = $_FILE_TO_URL_MAPPING[$path];
+					$mapped .= str_replace('\\', '/', substr(getcwd(), strlen($path)));
 
-					$components = parse_url($url);
+					$components = parse_url($mapped);
 
 					$server['HTTP_HOST'] = $components['host'];
 					$server['REQUEST_URI'] = $components['path'];

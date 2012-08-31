@@ -24,5 +24,6 @@
 		"files": [
 			"src/SilverStripe/Framework/functions.php"
 		]
-	}
+	},
+	"bin": ["sake"]
 }

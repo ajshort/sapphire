@@ -14,6 +14,9 @@ sakedir=`dirname $0`
 if [ -f $sakedir/cli-script.php ]; then
 	framework=$sakedir
 	base=`dirname $sakedir`
+elif [ -d $sakedir/../silverstripe/framework ]; then
+	framework=$sakedir/../silverstripe/framework
+	base=.
 elif [ -d ./framework ]; then
 	framework=./framework
 	base=.
@@ -24,7 +27,7 @@ elif [ -f ./cli-script.php ]; then
 	framework=.
 	base=..
 else
-	echo "Can't find ./framework/cli-script.php or ./cli-script.php"
+	echo "Cannot find the SilverStripe Framework installation."
 	exit 1
 fi
 
