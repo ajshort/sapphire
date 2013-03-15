@@ -241,6 +241,9 @@ mb_regex_encoding('UTF-8');
  */
 gc_enable();
 
+// Include the Composer autoloader.
+require_once BASE_PATH . '/vendor/autoload.php';
+
 // Include the files needed the initial manifest building, as well as any files
 // that are needed for the boostrap process on every request.
 require_once 'cache/Cache.php';
@@ -285,11 +288,6 @@ $manifest = new SS_ClassManifest(BASE_PATH, false, $flush);
 $loader = SS_ClassLoader::instance();
 $loader->registerAutoloader();
 $loader->pushManifest($manifest);
-
-// Fall back to Composer's autoloader (e.g. for PHPUnit), if composer is used
-if(file_exists(BASE_PATH . '/vendor/autoload.php')) {
-	require_once BASE_PATH . '/vendor/autoload.php';
-}
 
 // Now that the class manifest is up, load the configuration
 $configManifest = new SS_ConfigStaticManifest(BASE_PATH, false, $flush);
