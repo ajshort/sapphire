@@ -80,4 +80,4 @@ unlink("$target/composer.json");
 file_put_contents("$target/composer.json", $composer);
 
 echo "Running composer...\n";
-`composer install --dev -d $target`;
+echo `composer install --dev -d $target`;
