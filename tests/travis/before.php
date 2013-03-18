@@ -80,7 +80,7 @@ unlink("$target/composer.json");
 file_put_contents("$target/composer.json", $composer);
 
 echo "Running composer...\n";
-echo `composer install --dev -d $target`;
+echo `composer install --dev -v -d $target`;
 
 echo "Creating silverstripe-cache folder...\n";
 mkdir("$target/silverstripe-cache");
