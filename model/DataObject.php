@@ -59,10 +59,6 @@
  * If any public method on this class is prefixed with an underscore, 
  * the results are cached in memory through {@link cachedCall()}.
  * 
- * 
- * @todo Add instance specific removeExtension() which undos loadExtraStatics()
- *  and defineMethods()
- * 
  * @package framework
  * @subpackage model
  */
@@ -446,6 +442,25 @@ class DataObject extends ViewableData implements DataObjectInterface, i18nEntity
 
 		// prevent populateDefaults() and setField() from marking overwritten defaults as changed
 		$this->changed = array();
+
+		if(get_class($this) == 'DataObject') return;
+
+		$relationships = array(
+			'many_many' => 'getManyManyComponents',
+			'has_many' => 'getComponents',
+			'has_one' => 'getComponent',
+			'belongs_to' => 'getComponent'
+		);
+
+		foreach($relationships as $type => $method) {
+			$items = $this->$type();
+
+			if($items) foreach($items as $name => $definition) {
+				$this->addMethod($name, function($self) use($name, $method) {
+					return $self->$method($name);
+				});
+			}
+		}
 	}
 	
 	/**
@@ -605,50 +620,6 @@ class DataObject extends ViewableData implements DataObjectInterface, i18nEntity
 		}
 
 		return $newInstance;
-	}
-
-	/**
-	 * Adds methods from the extensions.
-	 * Called by Object::__construct() once per class.
-	 */
-	public function defineMethods() {
-		parent::defineMethods();
-
-		// Define the extra db fields - this is only necessary for extensions added in the
-		// class definition.  Object::add_extension() will call this at definition time for
-		// those objects, which is a better mechanism.  Perhaps extensions defined inside the
-		// class def can somehow be applied at definiton time also?
-		if($this->extension_instances) foreach($this->extension_instances as $i => $instance) {
-			if(!$instance->class) {
-				$class = get_class($instance);
-				user_error("DataObject::defineMethods(): Please ensure {$class}::__construct() calls"
-					. " parent::__construct()", E_USER_ERROR);
-			}
-		}
-
-		if($this->class == 'DataObject') return;
-
-		// Set up accessors for joined items
-		if($manyMany = $this->many_many()) {
-			foreach($manyMany as $relationship => $class) {
-				$this->addWrapperMethod($relationship, 'getManyManyComponents');
-			}
-		}
-		if($hasMany = $this->has_many()) {
-
-			foreach($hasMany as $relationship => $class) {
-				$this->addWrapperMethod($relationship, 'getComponents');
-			}
-
-		}
-		if($hasOne = $this->has_one()) {
-			foreach($hasOne as $relationship => $class) {
-				$this->addWrapperMethod($relationship, 'getComponent');
-			}
-		}
-		if($belongsTo = $this->belongs_to()) foreach(array_keys($belongsTo) as $relationship) {
-			$this->addWrapperMethod($relationship, 'getComponent');
-		}
 	}
 
 	/**

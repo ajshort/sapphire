@@ -8,8 +8,7 @@
  * See {@link Extension} on how to implement a custom multiple
  * inheritance for object instances based on PHP5 method call overloading.
  * 
- * @todo Create instance-specific removeExtension() which removes an extension from $extension_instances,
- * but not from static $extensions, and clears everything added through defineMethods(), mainly $extra_methods.
+ * @todo Create instance-specific removeExtension()
  *
  * @package framework
  * @subpackage core
@@ -29,19 +28,12 @@ abstract class Object {
 	 * 
 	 * Use {@link Object::add_extension()} to add extensions without access to the class code,
 	 * e.g. to extend core classes.
-	 * 
-	 * Extensions are instanciated together with the object and stored in {@link $extension_instances}.
 	 *
 	 * @var array $extensions
 	 * @config
 	 */
 	private static $extensions = null;
-	
-	private static
-		$classes_constructed = array(),
-		$extra_methods       = array(),
-		$built_in_methods    = array();
-	
+
 	private static
 		$custom_classes = array(),
 		$strong_classes = array();
@@ -62,10 +54,15 @@ abstract class Object {
 	}
 
 	/**
-	 * @var array all current extension instances.
+	 * @var Extension[]
 	 */
-	protected $extension_instances = array();
-	
+	private $extensionInstances;
+
+	/**
+	 * @var callable[]
+	 */
+	private $addedMethods = array();
+
 	/**
 	 * List of callbacks to call prior to extensions having extend called on them,
 	 * each grouped by methodName.
@@ -525,7 +522,7 @@ abstract class Object {
 		}
 
 		if(!preg_match('/^([^(]*)/', $extension, $matches)) {
-			return false;
+			return;
 		}
 		$extensionClass = $matches[1];
 		if(!class_exists($extensionClass)) {
@@ -536,15 +533,6 @@ abstract class Object {
 		if(!is_subclass_of($extensionClass, 'Extension')) {
 			user_error(sprintf('Object::add_extension() - Extension "%s" is not a subclass of Extension',
 				$extensionClass), E_USER_ERROR);
-		}
-		
-		// unset some caches
-		$subclasses = ClassInfo::subclassesFor($class);
-		$subclasses[] = $class;
-
-		if($subclasses) foreach($subclasses as $subclass) {
-			unset(self::$classes_constructed[$subclass]);
-			unset(self::$extra_methods[$subclass]);
 		}
 
 		Config::inst()->update($class, 'extensions', array($extension));
@@ -599,14 +587,6 @@ abstract class Object {
 
 		// unset singletons to avoid side-effects
 		Injector::inst()->unregisterAllObjects();
-
-		// unset some caches
-		$subclasses = ClassInfo::subclassesFor($class);
-		$subclasses[] = $class;
-		if($subclasses) foreach($subclasses as $subclass) {
-			unset(self::$classes_constructed[$subclass]);
-			unset(self::$extra_methods[$subclass]);
-		}
 	}
 	
 	/**
@@ -675,93 +655,44 @@ abstract class Object {
 
 	public function __construct() {
 		$this->class = get_class($this);
-
-		foreach(ClassInfo::ancestry(get_called_class()) as $class) {
-			if(in_array($class, self::$unextendable_classes)) continue;
-			$extensions = Config::inst()->get($class, 'extensions',
-				Config::UNINHERITED | Config::EXCLUDE_EXTRA_SOURCES);
-
-			if($extensions) foreach($extensions as $extension) {
-				$instance = self::create_from_string($extension);
-				$instance->setOwner(null, $class);
-				$this->extension_instances[$instance->class] = $instance;
-			}
-		}
-
-		if(!isset(self::$classes_constructed[$this->class])) {
-			$this->defineMethods();
-			self::$classes_constructed[$this->class] = true;
-		}
 	}
-	
+
 	/**
 	 * Attemps to locate and call a method dynamically added to a class at runtime if a default cannot be located
 	 *
-	 * You can add extra methods to a class using {@link Extensions}, {@link Object::createMethod()} or
-	 * {@link Object::addWrapperMethod()}
-	 *
 	 * @param string $method
-	 * @param array $arguments
+	 * @param array $args
 	 * @return mixed
 	 */
-	public function __call($method, $arguments) {
-		// If the method cache was cleared by an an Object::add_extension() / Object::remove_extension()
-		// call, then we should rebuild it.
-		if(empty(self::$extra_methods[get_class($this)])) {
-			$this->defineMethods();
+	public function __call($method, $args) {
+		$lower = strtolower($method);
+
+		if(isset($this->addedMethods[$lower])) {
+			array_unshift($args, $this);
+			return call_user_func_array($this->addedMethods[$lower], $args);
 		}
-		
-		$method = strtolower($method);
-		
-		if(isset(self::$extra_methods[$this->class][$method])) {
-			$config = self::$extra_methods[$this->class][$method];
-			
-			switch(true) {
-				case isset($config['property']) :
-					$obj = $config['index'] !== null ?
-						$this->{$config['property']}[$config['index']] :
-						$this->{$config['property']};
-						
-					if($obj) {
-						if(!empty($config['callSetOwnerFirst'])) $obj->setOwner($this);
-						$retVal = call_user_func_array(array($obj, $method), $arguments);
-						if(!empty($config['callSetOwnerFirst'])) $obj->clearOwner();
-						return $retVal;
-					}
-					
-					if($this->destroyed) {
-						throw new Exception (
-							"Object->__call(): attempt to call $method on a destroyed $this->class object"
-						);
-					} else {
-						throw new Exception (
-							"Object->__call(): $this->class cannot pass control to $config[property]($config[index])."
-								. ' Perhaps this object was mistakenly destroyed?'
-						);
-					}
-				
-				case isset($config['wrap']) :
-					array_unshift($arguments, $config['method']);
-					return call_user_func_array(array($this, $config['wrap']), $arguments);
-				
-				case isset($config['function']) :
-					return $config['function']($this, $arguments);
-				
-				default :
-					throw new Exception (
-						"Object->__call(): extra method $method is invalid on $this->class:"
-							. var_export($config, true)
-					);
+
+		foreach($this->getExtensionInstances() as $ext) {
+			if(method_exists($ext, $method)) {
+				$ext->setOwner($this);
+				$result = call_user_func_array(array($ext, $method), $args);
+				$ext->clearOwner();
+
+				return $result;
 			}
-		} else {
-			// Please do not change the exception code number below.
-			$class = get_class($this);
-			throw new Exception("Object->__call(): the method '$method' does not exist on '$class'", 2175);
 		}
+
+		// Please do not change the exception code number below.
+		throw new Exception(
+			sprintf(
+				"Object->__call(): the method '%s' does not exist on '%s'", get_class($this), $method
+			),
+			2175
+		);
 	}
 	
 	// --------------------------------------------------------------------------------------------------------------
-	
+
 	/**
 	 * Return TRUE if a method exists on this object
 	 *
@@ -772,121 +703,20 @@ abstract class Object {
 	 * @return bool
 	 */
 	public function hasMethod($method) {
-		return method_exists($this, $method) || isset(self::$extra_methods[$this->class][strtolower($method)]);
-	}
-	
-	/**
-	 * Return the names of all the methods available on this object
-	 *
-	 * @param bool $custom include methods added dynamically at runtime
-	 * @return array
-	 */
-	public function allMethodNames($custom = false) {
-		if(!isset(self::$built_in_methods[$this->class])) {
-			self::$built_in_methods[$this->class] = array_map('strtolower', get_class_methods($this));
+		if(method_exists($this, $method)) return true;
+		if(isset($this->addedMethods[strtolower($method)])) return true;
+
+		foreach($this->getExtensionInstances() as $ext) {
+			if(method_exists($ext, $method)) return true;
 		}
-		
-		if($custom && isset(self::$extra_methods[$this->class])) {
-			return array_merge(self::$built_in_methods[$this->class], array_keys(self::$extra_methods[$this->class]));
-		} else {
-			return self::$built_in_methods[$this->class];
-		}
+
+		return false;
 	}
 
-	/**
-	 * Adds any methods from {@link Extension} instances attached to this object.
-	 * All these methods can then be called directly on the instance (transparently
-	 * mapped through {@link __call()}), or called explicitly through {@link extend()}.
-	 * 
-	 * @uses addMethodsFrom()
-	 */
-	protected function defineMethods() {
-		if($this->extension_instances) foreach(array_keys($this->extension_instances) as $key) {
-			$this->addMethodsFrom('extension_instances', $key);
-		}
-		
-		if(isset($_REQUEST['debugmethods']) && isset(self::$built_in_methods[$this->class])) {
-			Debug::require_developer_login();
-			
-			echo '<h2>Methods defined on ' . $this->class . '</h2><ul>';
-			foreach(self::$built_in_methods[$this->class] as $method) {
-				echo "<li>$method</li>";
-			}
-			echo '</ul>';
-		}
+	protected function addMethod($method, $callable) {
+		$this->addedMethods[strtolower($method)] = $callable;
 	}
-	
-	/**
-	 * Add all the methods from an object property (which is an {@link Extension}) to this object.
-	 *
-	 * @param string $property the property name
-	 * @param string|int $index an index to use if the property is an array
-	 */
-	protected function addMethodsFrom($property, $index = null) {
-		$extension = ($index !== null) ? $this->{$property}[$index] : $this->$property;
-		
-		if(!$extension) {
-			throw new InvalidArgumentException (
-				"Object->addMethodsFrom(): could not add methods from {$this->class}->{$property}[$index]"
-			);
-		}
-		
-		if(method_exists($extension, 'allMethodNames')) {
-			$methods = $extension->allMethodNames(true);
 
-		} else {
-			if(!isset(self::$built_in_methods[$extension->class])) {
-				self::$built_in_methods[$extension->class] = array_map('strtolower', get_class_methods($extension));
-			}
-			$methods = self::$built_in_methods[$extension->class];
-		}
-		
-		if($methods) {
-			$methodInfo = array(
-				'property' => $property,
-				'index'    => $index,
-				'callSetOwnerFirst' => $extension instanceof Extension,
-			);
-
-			$newMethods = array_fill_keys($methods, $methodInfo);
-			
-			if(isset(self::$extra_methods[$this->class])) {
-				self::$extra_methods[$this->class] =
-					array_merge(self::$extra_methods[$this->class], $newMethods);
-			} else {
-				self::$extra_methods[$this->class] = $newMethods;
-			}
-		}
-	}
-	
-	/**
-	 * Add a wrapper method - a method which points to another method with a different name. For example, Thumbnail(x)
-	 * can be wrapped to generateThumbnail(x)
-	 *
-	 * @param string $method the method name to wrap
-	 * @param string $wrap the method name to wrap to
-	 */
-	protected function addWrapperMethod($method, $wrap) {
-		self::$extra_methods[$this->class][strtolower($method)] = array (
-			'wrap'   => $wrap,
-			'method' => $method
-		);
-	}
-	
-	/**
-	 * Add an extra method using raw PHP code passed as a string
-	 *
-	 * @param string $method the method name
-	 * @param string $code the PHP code - arguments will be in an array called $args, while you can access this object
-	 *        by using $obj. Note that you cannot call protected methods, as the method is actually an external
-	 *        function
-	 */
-	protected function createMethod($method, $code) {
-		self::$extra_methods[$this->class][strtolower($method)] = array (
-			'function' => create_function('$obj, $args', $code)
-		);
-	}
-	
 	// --------------------------------------------------------------------------------------------------------------
 	
 	/**
@@ -975,8 +805,6 @@ abstract class Object {
 	 * permission-checks through extend, as they use min() to determine if any of the returns is FALSE. As min() doesn't
 	 * do type checking, an included NULL return would fail the permission checks.
 	 * 
-	 * The extension methods are defined during {@link __construct()} in {@link defineMethods()}.
-	 * 
 	 * @param string $method the name of the method to call on each extension
 	 * @param mixed $a1,... up to 7 arguments to be passed to the method
 	 * @return array
@@ -992,7 +820,7 @@ abstract class Object {
 			$this->beforeExtendCallbacks[$method] = array();
 		}
 
-		if($this->extension_instances) foreach($this->extension_instances as $instance) {
+		foreach($this->getExtensionInstances() as $instance) {
 			if(method_exists($instance, $method)) {
 				$instance->setOwner($this);
 				$value = $instance->$method($a1, $a2, $a3, $a4, $a5, $a6, $a7);
@@ -1000,7 +828,7 @@ abstract class Object {
 				$instance->clearOwner();
 			}
 		}
-		
+
 		if(!empty($this->afterExtendCallbacks[$method])) {
 			foreach(array_reverse($this->afterExtendCallbacks[$method]) as $callback) {
 				$value = call_user_func($callback, $a1, $a2, $a3, $a4, $a5, $a6, $a7);
@@ -1011,19 +839,20 @@ abstract class Object {
 		
 		return $values;
 	}
-	
+
 	/**
 	 * Get an extension instance attached to this object by name.
 	 * 
 	 * @uses hasExtension()
 	 *
 	 * @param string $extension
-	 * @return Extension
+	 * @return Extension|null
 	 */
 	public function getExtensionInstance($extension) {
-		if($this->hasExtension($extension)) return $this->extension_instances[$extension];
+		$instances = $this->getExtensionInstances();
+		if(isset($instances[$extension])) return $instances[$extension];
 	}
-	
+
 	/**
 	 * Returns TRUE if this object instance has a specific extension applied
 	 * in {@link $extension_instances}. Extension instances are initialized
@@ -1039,20 +868,49 @@ abstract class Object {
 	 * @return bool
 	 */
 	public function hasExtension($extension) {
-		return isset($this->extension_instances[$extension]);
+		return array_key_exists($extension, $this->getExtensionInstances());
 	}
-	
+
 	/**
 	 * Get all extension instances for this specific object instance.
 	 * See {@link get_extensions()} to get all applied extension classes
 	 * for this class (not the instance).
 	 * 
-	 * @return array Map of {@link DataExtension} instances, keyed by classname.
+	 * @return Extension[]
 	 */
 	public function getExtensionInstances() {
-		return $this->extension_instances;
+		if($this->extensionInstances === null) {
+			$this->createExtensionInstances();
+		}
+
+		return $this->extensionInstances;
 	}
-	
+
+	private function createExtensionInstances() {
+		$class = get_class($this);
+		$exts = array();
+
+		while($class && !in_array($class, self::$unextendable_classes)) {
+			$extensions = Config::inst()->get(
+				$class,
+				'extensions',
+				Config::UNINHERITED | Config::EXCLUDE_EXTRA_SOURCES
+			);
+
+			if($extensions) foreach($extensions as $definition) {
+				/** @var Extension $inst */
+				$inst = self::create_from_string($definition);
+				$inst->setOwner(null, $class);
+
+				$exts[get_class($inst)] = $inst;
+			}
+
+			$class = get_parent_class($class);
+		}
+
+		$this->extensionInstances = $exts;
+	}
+
 	// --------------------------------------------------------------------------------------------------------------
 	
 	/**

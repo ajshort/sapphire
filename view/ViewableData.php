@@ -83,7 +83,21 @@ class ViewableData extends Object implements IteratorAggregate {
 	public static function castingObjectCreatorPair($fieldSchema) {
 		Deprecation::notice('2.5', 'Use Object::create_from_string() instead');
 	}
-	
+
+	public function hasMethod($method) {
+		return parent::hasMethod($method) || (
+			$this->failover && $this->failover->hasMethod($method)
+		);
+	}
+
+	public function __call($method, $arguments) {
+		if($this->failover && $this->failover->hasMethod($method)) {
+			return call_user_func_array(array($this->failover, $method), $arguments);
+		}
+
+		return parent::__call($method, $arguments);
+	}
+
 	// FIELD GETTERS & SETTERS -----------------------------------------------------------------------------------------
 	
 	/**
@@ -157,34 +171,7 @@ class ViewableData extends Object implements IteratorAggregate {
 	public function setField($field, $value) {
 		$this->$field = $value;
 	}
-	
-	// -----------------------------------------------------------------------------------------------------------------
-	
-	/**
-	 * Add methods from the {@link ViewableData::$failover} object, as well as wrapping any methods prefixed with an
-	 * underscore into a {@link ViewableData::cachedCall()}.
-	 */
-	public function defineMethods() {
-		if($this->failover) {
-			if(is_object($this->failover)) $this->addMethodsFrom('failover');
-			else user_error("ViewableData::\$failover set to a non-object", E_USER_WARNING);
-			
-			if(isset($_REQUEST['debugfailover'])) {
-				Debug::message("$this->class created with a failover class of {$this->failover->class}");
-			}
-		}
-		
-		foreach($this->allMethodNames() as $method) {
-			if($method[0] == '_' && $method[1] != '_') {
-				$this->createMethod(
-					substr($method, 1), "return \$obj->cachedCall('$method', \$args, '" . substr($method, 1) . "');"
-				);
-			}
-		}
-		
-		parent::defineMethods();
-	}
-	
+
 	/**
 	 * Merge some arbitrary data in with this object. This method returns a {@link ViewableData_Customised} instance
 	 * with references to both this and the new custom data.

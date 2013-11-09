@@ -1631,11 +1631,11 @@ class Member_Validator extends RequiredFields {
 		}
 
 		// Execute the validators on the extensions
-		if($this->extension_instances) {
-			foreach($this->extension_instances as $extension) {
-				if(method_exists($extension, 'hasMethod') && $extension->hasMethod('updatePHP')) {
-					$valid &= $extension->updatePHP($data, $this->form);
-				}
+		foreach($this->getExtensionInstances() as $extension) {
+			if(method_exists($extension, 'hasMethod') && $extension->hasMethod('updatePHP')) {
+				$extension->setOwner($this);
+				$valid &= $extension->updatePHP($data, $this->form);
+				$extension->clearOwner();
 			}
 		}
 
