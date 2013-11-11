@@ -1,9 +1,9 @@
 <?php
 
-require_once dirname(__FILE__) . '/InjectionCreator.php';
-require_once dirname(__FILE__) . '/SilverStripeInjectionCreator.php';
-require_once dirname(__FILE__) . '/ServiceConfigurationLocator.php';
-require_once dirname(__FILE__) . '/SilverStripeServiceConfigurationLocator.php';
+require_once __DIR__ . '/InjectionCreator.php';
+require_once __DIR__ . '/SilverStripeInjectionCreator.php';
+require_once __DIR__ . '/ServiceConfigurationLocator.php';
+require_once __DIR__ . '/SilverStripeServiceConfigurationLocator.php';
 
 /**
  * A simple injection manager that manages creating objects and injecting
